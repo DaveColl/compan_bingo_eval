@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#2563b8">
     <title>Kollegen Bingo – Bewertung</title>
-    <link rel="stylesheet" href="style.css?v=1.2">
+    <link rel="stylesheet" href="style.css?v=1.3">
 </head>
 <body>
 
@@ -17,14 +17,9 @@
         <div class="container">
             <h1>🎯 Bingo Bewertung</h1>
             <p class="subtitle">Tragt alle Gruppen ein, um die Bewertung zu starten.</p>
-
             <div id="groupList"></div>
-
             <button id="addGroupBtn" class="btn btn-secondary">➕ Gruppe hinzufügen</button>
-
-            <button id="startBtn" class="btn btn-primary" disabled>
-                🏁 Bewertung Starten
-            </button>
+            <button id="startBtn" class="btn btn-primary" disabled>🏁 Bewertung Starten</button>
         </div>
     </div>
 
@@ -36,13 +31,11 @@
                 <button id="resetBtn" class="btn-icon" title="Neu starten">🔄</button>
             </div>
 
-            <!-- Leaderboard -->
-            <div class="leaderboard" id="leaderboard">
+            <div class="leaderboard">
                 <h2>🏆 Rangliste</h2>
                 <div id="leaderboardList"></div>
             </div>
 
-            <!-- Point System Info -->
             <div class="points-info">
                 <span>📌 1 Pt. pro Feld</span>
                 <span>➕ 1 Bonus pro Reihe</span>
@@ -50,11 +43,10 @@
                 <span>➕ 1 Bonus pro Diagonale</span>
             </div>
 
-            <!-- Groups -->
             <div id="groupsScoring"></div>
         </div>
     </div>
 
-    <script src="app.js?v=1.2"></script>
+    <script src="app.js?v=1.3"></script>
 </body>
 </html>
