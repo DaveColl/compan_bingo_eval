@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#2563b8">
     <title>Kollegen Bingo – Bewertung</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.2">
 </head>
 <body>
 
@@ -53,34 +55,6 @@
         </div>
     </div>
 
-    <!-- Group Template (hidden) -->
-    <template id="groupTemplate">
-        <div class="group-card" data-group-id="">
-            <div class="group-header" onclick="toggleGroup(this)">
-                <div class="group-title">
-                    <span class="group-rank"></span>
-                    <span class="group-name"></span>
-                    <span class="group-members-preview"></span>
-                </div>
-                <div class="group-score-display">
-                    <span class="score-number">0</span>
-                    <span class="score-label">Punkte</span>
-                    <span class="chevron">▼</span>
-                </div>
-            </div>
-            <div class="group-body collapsed">
-                <div class="score-breakdown">
-                    <span class="breakdown-item">Felder: <b class="b-cells">0</b></span>
-                    <span class="breakdown-item">Reihen: <b class="b-rows">0</b></span>
-                    <span class="breakdown-item">Spalten: <b class="b-cols">0</b></span>
-                    <span class="breakdown-item">Diagonalen: <b class="b-diags">0</b></span>
-                </div>
-                <div class="bingo-grid scoring-grid"></div>
-                <div class="members-list"></div>
-            </div>
-        </div>
-    </template>
-
-    <script src="app.js"></script>
+    <script src="app.js?v=1.2"></script>
 </body>
 </html>
