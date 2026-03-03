@@ -183,6 +183,13 @@ h2 {
     font-weight: 600;
 }
 
+/* ── Group Cards Container ── */
+#groupsScoring {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
 /* ── Group Cards ── */
 .group-card {
     background: white;
@@ -248,7 +255,6 @@ h2 {
     grid-template-columns: repeat(5, 1fr);
     gap: 8px;
 }
-
 .scoring-cell {
     aspect-ratio: 1;
     background: #f0f4ff;
@@ -273,8 +279,6 @@ h2 {
     color: white;
     box-shadow: 0 3px 10px rgba(37,99,184,0.45);
 }
-
-/* Bonus highlights */
 .scoring-cell.checked.row-bonus  { box-shadow: 0 0 0 3px #f0c040, 0 3px 10px rgba(37,99,184,0.4); }
 .scoring-cell.checked.col-bonus  { box-shadow: 0 0 0 3px #4caf50, 0 3px 10px rgba(37,99,184,0.4); }
 .scoring-cell.checked.diag-bonus { box-shadow: 0 0 0 3px #ff6b6b, 0 3px 10px rgba(37,99,184,0.4); }
