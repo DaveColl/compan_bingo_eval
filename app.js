@@ -1,6 +1,5 @@
-const APP_VERSION = '1.2';
+const APP_VERSION = '1.3';
 
-// Cache busting
 (function checkVersion() {
     const saved = localStorage.getItem('scoringAppVersion');
     if (saved !== APP_VERSION) {
@@ -137,8 +136,8 @@ function getBonusSets(cells) {
         if ([0,1,2,3,4].every(r => cells[r*5+c]))
             [0,1,2,3,4].forEach(r => col.add(r*5+c));
     }
-    if ([0,6,12,18,24].every(i => cells[i]))  [0,6,12,18,24].forEach(i => diag.add(i));
-    if ([4,8,12,16,20].every(i => cells[i]))  [4,8,12,16,20].forEach(i => diag.add(i));
+    if ([0,6,12,18,24].every(i => cells[i])) [0,6,12,18,24].forEach(i => diag.add(i));
+    if ([4,8,12,16,20].every(i => cells[i])) [4,8,12,16,20].forEach(i => diag.add(i));
 
     return { row, col, diag };
 }
@@ -149,6 +148,7 @@ function renderScoring() {
 }
 
 function renderLeaderboard() {
+    // Leaderboard sorts by score
     const ranked = [...groups]
         .map(g => ({ ...g, score: calculateScore(g.cells) }))
         .sort((a, b) => b.score.total - a.score.total);
@@ -172,7 +172,8 @@ function renderLeaderboard() {
 
 function renderGroupCards() {
     const container = document.getElementById('groupsScoring');
-    // Remember which cards were open
+
+    // Remember which cards were open before re-render
     const openIds = new Set(
         [...document.querySelectorAll('.group-card.open')]
             .map(c => c.dataset.groupId)
@@ -180,33 +181,28 @@ function renderGroupCards() {
 
     container.innerHTML = '';
 
-    const ranked = [...groups]
-        .map(g => ({ ...g, score: calculateScore(g.cells) }))
-        .sort((a, b) => b.score.total - a.score.total);
+    // Cards stay in original entry order - no sorting
+    const withScores = groups.map(g => ({ ...g, score: calculateScore(g.cells) }));
 
-    const medals = ['🥇', '🥈', '🥉'];
-
-    ranked.forEach((group, rankIndex) => {
+    withScores.forEach((group, index) => {
         const score = group.score;
         const bonus = getBonusSets(group.cells);
         const members = group.members.filter(m => m.trim());
         const memberPreview = members.slice(0, 3).join(', ') + (members.length > 3 ? ` +${members.length - 3}` : '');
-        const rankLabel = rankIndex < 3 ? medals[rankIndex] : `Platz ${rankIndex + 1}`;
         const wasOpen = openIds.has(String(group.id));
 
         const card = document.createElement('div');
         card.className = 'group-card' + (wasOpen ? ' open' : '');
         card.dataset.groupId = group.id;
 
-        // Build grid cells - just show numbers 1-25
         const gridCells = Array.from({ length: 25 }, (_, i) => {
             const checked = group.cells[i];
             let bonusClass = '';
             if (checked) {
-                if      (bonus.diag.has(i)) bonusClass = 'diag-bonus';
-                else if (bonus.row.has(i) && bonus.col.has(i)) bonusClass = 'diag-bonus';
-                else if (bonus.row.has(i))  bonusClass = 'row-bonus';
-                else if (bonus.col.has(i))  bonusClass = 'col-bonus';
+                if      (bonus.diag.has(i))                       bonusClass = 'diag-bonus';
+                else if (bonus.row.has(i) && bonus.col.has(i))    bonusClass = 'diag-bonus';
+                else if (bonus.row.has(i))                        bonusClass = 'row-bonus';
+                else if (bonus.col.has(i))                        bonusClass = 'col-bonus';
             }
             return `<div class="scoring-cell ${checked ? 'checked' : ''} ${checked ? bonusClass : ''}"
                 onclick="toggleCell('${group.id}', ${i})">${i + 1}</div>`;
@@ -215,7 +211,7 @@ function renderGroupCards() {
         card.innerHTML = `
             <div class="group-header" onclick="toggleGroup('${group.id}')">
                 <div class="group-title">
-                    <span class="group-rank">${rankLabel}</span>
+                    <span class="group-rank">Gruppe ${index + 1}</span>
                     <span class="group-name">${group.name}</span>
                     <span class="group-members-preview">${memberPreview}</span>
                 </div>
@@ -234,15 +230,16 @@ function renderGroupCards() {
                 </div>
                 <div class="scoring-grid">${gridCells}</div>
                 <div class="bonus-legend">
-                    <span class="legend-item"><span class="legend-dot" style="background:#f0c040;"></span> Reihe</span>
-                    <span class="legend-item"><span class="legend-dot" style="background:#4caf50;"></span> Spalte</span>
-                    <span class="legend-item"><span class="legend-dot" style="background:#ff6b6b;"></span> Diagonale</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#f0c040;"></span> Reihe komplett</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#4caf50;"></span> Spalte komplett</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#ff6b6b;"></span> Diagonale komplett</span>
                 </div>
                 <div class="members-list">
                     ${members.map(m => `<span class="member-tag">👤 ${m}</span>`).join('')}
                 </div>
             </div>
         `;
+
         container.appendChild(card);
     });
 }
