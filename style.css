@@ -190,6 +190,14 @@ h2 {
     gap: 14px;
 }
 
+/* ADD this after the #groupsScoring rule */
+#groupList {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+
 /* ── Group Cards ── */
 .group-card {
     background: white;
