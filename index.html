@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="theme-color" content="#2563b8">
+    <title>Kollegen Bingo – Bewertung</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- SCREEN 1: Setup -->
+    <div id="setupScreen" class="screen active">
+        <div class="container">
+            <h1>🎯 Bingo Bewertung</h1>
+            <p class="subtitle">Tragt alle Gruppen ein, um die Bewertung zu starten.</p>
+
+            <div id="groupList"></div>
+
+            <button id="addGroupBtn" class="btn btn-secondary">➕ Gruppe hinzufügen</button>
+
+            <button id="startBtn" class="btn btn-primary" disabled>
+                🏁 Bewertung Starten
+            </button>
+        </div>
+    </div>
+
+    <!-- SCREEN 2: Scoring -->
+    <div id="scoringScreen" class="screen">
+        <div class="container">
+            <div class="scoring-header">
+                <h1>🎯 Bingo Bewertung</h1>
+                <button id="resetBtn" class="btn-icon" title="Neu starten">🔄</button>
+            </div>
+
+            <!-- Leaderboard -->
+            <div class="leaderboard" id="leaderboard">
+                <h2>🏆 Rangliste</h2>
+                <div id="leaderboardList"></div>
+            </div>
+
+            <!-- Point System Info -->
+            <div class="points-info">
+                <span>📌 1 Pt. pro Feld</span>
+                <span>➕ 1 Bonus pro Reihe</span>
+                <span>➕ 1 Bonus pro Spalte</span>
+                <span>➕ 1 Bonus pro Diagonale</span>
+            </div>
+
+            <!-- Groups -->
+            <div id="groupsScoring"></div>
+        </div>
+    </div>
+
+    <!-- Group Template (hidden) -->
+    <template id="groupTemplate">
+        <div class="group-card" data-group-id="">
+            <div class="group-header" onclick="toggleGroup(this)">
+                <div class="group-title">
+                    <span class="group-rank"></span>
+                    <span class="group-name"></span>
+                    <span class="group-members-preview"></span>
+                </div>
+                <div class="group-score-display">
+                    <span class="score-number">0</span>
+                    <span class="score-label">Punkte</span>
+                    <span class="chevron">▼</span>
+                </div>
+            </div>
+            <div class="group-body collapsed">
+                <div class="score-breakdown">
+                    <span class="breakdown-item">Felder: <b class="b-cells">0</b></span>
+                    <span class="breakdown-item">Reihen: <b class="b-rows">0</b></span>
+                    <span class="breakdown-item">Spalten: <b class="b-cols">0</b></span>
+                    <span class="breakdown-item">Diagonalen: <b class="b-diags">0</b></span>
+                </div>
+                <div class="bingo-grid scoring-grid"></div>
+                <div class="members-list"></div>
+            </div>
+        </div>
+    </template>
+
+    <script src="app.js"></script>
+</body>
+</html>
