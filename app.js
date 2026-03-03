@@ -1,4 +1,4 @@
-const APP_VERSION = '1.3';
+const APP_VERSION = '1.5';
 
 (function checkVersion() {
     const saved = localStorage.getItem('scoringAppVersion');
@@ -35,7 +35,8 @@ function addGroup() {
         id: Date.now() + Math.random(),
         name: '',
         members: ['', '', '', '', ''],
-        cells: Array(25).fill(false)
+        cells: Array(25).fill(false),
+        submittedAt: null   // timestamp when group hands in
     });
     renderSetup();
 }
@@ -142,20 +143,66 @@ function getBonusSets(cells) {
     return { row, col, diag };
 }
 
+// Format timestamp nicely
+function formatTime(ts) {
+    if (!ts) return null;
+    const d = new Date(ts);
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    const s = String(d.getSeconds()).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+// Calculate submission order among submitted groups
+function getSubmissionOrder(groupId) {
+    const submitted = groups
+        .filter(g => g.submittedAt !== null)
+        .sort((a, b) => a.submittedAt - b.submittedAt);
+    const idx = submitted.findIndex(g => String(g.id) === String(groupId));
+    return idx === -1 ? null : idx + 1;
+}
+
+function submitGroup(groupId) {
+    const group = groups.find(g => String(g.id) === String(groupId));
+    if (!group) return;
+
+    if (group.submittedAt) {
+        // Allow undoing submission
+        if (!confirm(`Abgabe für "${group.name}" rückgängig machen?`)) return;
+        group.submittedAt = null;
+    } else {
+        group.submittedAt = Date.now();
+    }
+
+    saveData();
+    renderScoring();
+}
+
 function renderScoring() {
     renderLeaderboard();
     renderGroupCards();
 }
 
 function renderLeaderboard() {
-    // Leaderboard sorts by score
+    // Sort: higher score first, then earlier submission time, then not submitted last
     const ranked = [...groups]
         .map(g => ({ ...g, score: calculateScore(g.cells) }))
-        .sort((a, b) => b.score.total - a.score.total);
+        .sort((a, b) => {
+            if (b.score.total !== a.score.total) return b.score.total - a.score.total;
+            // Tiebreaker: submitted first wins
+            if (a.submittedAt && b.submittedAt) return a.submittedAt - b.submittedAt;
+            if (a.submittedAt) return -1; // a submitted, b didn't → a wins
+            if (b.submittedAt) return 1;  // b submitted, a didn't → b wins
+            return 0;
+        });
 
     const medals = ['🥇', '🥈', '🥉'];
     document.getElementById('leaderboardList').innerHTML = ranked.map((g, i) => {
         const members = g.members.filter(m => m.trim()).join(', ') || '–';
+        const order = getSubmissionOrder(g.id);
+        const submittedHtml = g.submittedAt
+            ? `<span class="lb-submitted">✅ Abgabe ${order}. (${formatTime(g.submittedAt)})</span>`
+            : `<span class="lb-not-submitted">⏳ Noch nicht abgegeben</span>`;
         return `
             <div class="leaderboard-row ${i < 3 ? `rank-${i+1}` : 'rank-other'}">
                 <span class="lb-rank">${medals[i] || `${i+1}.`}</span>
@@ -163,7 +210,10 @@ function renderLeaderboard() {
                     ${g.name}
                     <div style="font-size:0.75em;color:#888;font-weight:normal;">${members}</div>
                 </div>
-                <span class="lb-cells">${g.score.cells}/25 Felder</span>
+                <div class="lb-meta">
+                    <span class="lb-cells">${g.score.cells}/25 Felder</span>
+                    ${submittedHtml}
+                </div>
                 <span class="lb-score">${g.score.total} Pt.</span>
             </div>
         `;
@@ -173,7 +223,6 @@ function renderLeaderboard() {
 function renderGroupCards() {
     const container = document.getElementById('groupsScoring');
 
-    // Remember which cards were open before re-render
     const openIds = new Set(
         [...document.querySelectorAll('.group-card.open')]
             .map(c => c.dataset.groupId)
@@ -181,7 +230,6 @@ function renderGroupCards() {
 
     container.innerHTML = '';
 
-    // Cards stay in original entry order - no sorting
     const withScores = groups.map(g => ({ ...g, score: calculateScore(g.cells) }));
 
     withScores.forEach((group, index) => {
@@ -190,9 +238,11 @@ function renderGroupCards() {
         const members = group.members.filter(m => m.trim());
         const memberPreview = members.slice(0, 3).join(', ') + (members.length > 3 ? ` +${members.length - 3}` : '');
         const wasOpen = openIds.has(String(group.id));
+        const isSubmitted = group.submittedAt !== null;
+        const order = getSubmissionOrder(group.id);
 
         const card = document.createElement('div');
-        card.className = 'group-card' + (wasOpen ? ' open' : '');
+        card.className = `group-card${wasOpen ? ' open' : ''}${isSubmitted ? ' submitted' : ''}`;
         card.dataset.groupId = group.id;
 
         const gridCells = Array.from({ length: 25 }, (_, i) => {
@@ -208,12 +258,23 @@ function renderGroupCards() {
                 onclick="toggleCell('${group.id}', ${i})">${i + 1}</div>`;
         }).join('');
 
+        const submitHtml = isSubmitted
+            ? `<div class="submit-section done">
+                <button class="btn-submit undone" onclick="submitGroup('${group.id}')">↩ Rückgängig</button>
+                <span class="submit-info done">✅ Abgegeben als ${order}. um ${formatTime(group.submittedAt)}</span>
+               </div>`
+            : `<div class="submit-section">
+                <button class="btn-submit" onclick="submitGroup('${group.id}')">✅ Abgabe bestätigen</button>
+                <span class="submit-info">Drücken wenn die Gruppe ihr Bingo abgibt. Uhrzeit wird als Tiebreaker gespeichert.</span>
+               </div>`;
+
         card.innerHTML = `
             <div class="group-header" onclick="toggleGroup('${group.id}')">
                 <div class="group-title">
                     <span class="group-rank">Gruppe ${index + 1}</span>
                     <span class="group-name">${group.name}</span>
                     <span class="group-members-preview">${memberPreview}</span>
+                    ${isSubmitted ? `<span class="group-submitted-badge">✅ Abgabe ${order}. um ${formatTime(group.submittedAt)}</span>` : ''}
                 </div>
                 <div class="group-score-display">
                     <span class="score-number">${score.total}</span>
@@ -234,6 +295,7 @@ function renderGroupCards() {
                     <span class="legend-item"><span class="legend-dot" style="background:#4caf50;"></span> Spalte komplett</span>
                     <span class="legend-item"><span class="legend-dot" style="background:#ff6b6b;"></span> Diagonale komplett</span>
                 </div>
+                ${submitHtml}
                 <div class="members-list">
                     ${members.map(m => `<span class="member-tag">👤 ${m}</span>`).join('')}
                 </div>
