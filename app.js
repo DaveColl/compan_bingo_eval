@@ -1,18 +1,18 @@
-const QUESTIONS = [
-    "Hat Kinder", "Hat ein Haustier", "Spielt ein Instrument",
-    "Fährt Fahrrad zur Arbeit", "Trinkt keinen Kaffee",
-    "Spricht 3+ Sprachen", "Hat einen Garten", "Macht Yoga",
-    "Kocht gerne", "Ist Linkshänder", "Trägt eine Brille",
-    "Hat im Ausland gelebt", "Spielt Fußball", "Ist Vegetarier/Vegan",
-    "Hat Geschwister", "Kann ein Lied singen", "Liebt Horrorfilme",
-    "Sammelt etwas", "Hat ein Tattoo", "Liest gerne Bücher",
-    "Läuft Marathon", "Spielt Videospiele", "Kann tanzen",
-    "Backt gerne", "Ist im selben Monat geboren"
-];
+const APP_VERSION = '1.2';
+
+// Cache busting
+(function checkVersion() {
+    const saved = localStorage.getItem('scoringAppVersion');
+    if (saved !== APP_VERSION) {
+        localStorage.removeItem('bingoScoring');
+        localStorage.setItem('scoringAppVersion', APP_VERSION);
+        if (saved !== null) window.location.reload(true);
+    }
+})();
 
 let groups = [];
 
-// ─── SETUP SCREEN ───────────────────────────────────────────
+// ─── INIT ────────────────────────────────────────────────────
 
 function init() {
     const saved = localStorage.getItem('bingoScoring');
@@ -29,6 +29,8 @@ function init() {
     renderSetup();
 }
 
+// ─── SETUP ───────────────────────────────────────────────────
+
 function addGroup() {
     groups.push({
         id: Date.now() + Math.random(),
@@ -41,7 +43,7 @@ function addGroup() {
 
 function removeGroup(id) {
     if (groups.length <= 1) return alert('Mindestens eine Gruppe wird benötigt!');
-    groups = groups.filter(g => g.id !== id);
+    groups = groups.filter(g => String(g.id) !== String(id));
     renderSetup();
 }
 
@@ -55,19 +57,19 @@ function renderSetup() {
         card.innerHTML = `
             <div class="group-input-header">
                 <h3>Gruppe ${index + 1}</h3>
-                <button class="btn btn-danger" onclick="removeGroup(${group.id})">✕ Entfernen</button>
+                <button class="btn btn-danger" onclick="removeGroup('${group.id}')">✕ Entfernen</button>
             </div>
             <input class="input-field" type="text" placeholder="Gruppenname (z.B. Die Bingo-Helden)"
                 value="${group.name}"
-                oninput="updateGroupName(${group.id}, this.value)" />
-            <div style="font-size:0.85em;color:#666;margin-bottom:6px;">Gruppenmitglieder:</div>
+                oninput="updateGroupName('${group.id}', this.value)" />
+            <div style="font-size:0.85em;color:#666;margin-bottom:8px;">Gruppenmitglieder:</div>
             <div class="members-inputs">
                 ${group.members.map((m, i) => `
                     <div>
                         <span class="member-label">Person ${i + 1}</span>
                         <input class="input-field" type="text" placeholder="Name..."
                             value="${m}"
-                            oninput="updateMember(${group.id}, ${i}, this.value)"
+                            oninput="updateMember('${group.id}', ${i}, this.value)"
                             style="margin-bottom:0;" />
                     </div>
                 `).join('')}
@@ -80,12 +82,12 @@ function renderSetup() {
 }
 
 function updateGroupName(id, value) {
-    groups.find(g => g.id === id).name = value;
+    groups.find(g => String(g.id) === String(id)).name = value;
     checkStartBtn();
 }
 
 function updateMember(id, index, value) {
-    groups.find(g => g.id === id).members[index] = value;
+    groups.find(g => String(g.id) === String(id)).members[index] = value;
 }
 
 function checkStartBtn() {
@@ -99,30 +101,19 @@ function showScoringScreen() {
     renderScoring();
 }
 
-// ─── SCORING SCREEN ─────────────────────────────────────────
-
-function renderScoring() {
-    renderLeaderboard();
-    renderGroupCards();
-}
+// ─── SCORING ─────────────────────────────────────────────────
 
 function calculateScore(cells) {
     let cellPoints = 0, rowBonus = 0, colBonus = 0, diagBonus = 0;
 
-    // Cells
     cells.forEach(c => { if (c) cellPoints++; });
 
-    // Rows
     for (let r = 0; r < 5; r++) {
         if ([0,1,2,3,4].every(c => cells[r * 5 + c])) rowBonus++;
     }
-
-    // Columns
     for (let c = 0; c < 5; c++) {
         if ([0,1,2,3,4].every(r => cells[r * 5 + c])) colBonus++;
     }
-
-    // Diagonals
     if ([0,6,12,18,24].every(i => cells[i])) diagBonus++;
     if ([4,8,12,16,20].every(i => cells[i])) diagBonus++;
 
@@ -135,21 +126,39 @@ function calculateScore(cells) {
     };
 }
 
+function getBonusSets(cells) {
+    const row = new Set(), col = new Set(), diag = new Set();
+
+    for (let r = 0; r < 5; r++) {
+        if ([0,1,2,3,4].every(c => cells[r*5+c]))
+            [0,1,2,3,4].forEach(c => row.add(r*5+c));
+    }
+    for (let c = 0; c < 5; c++) {
+        if ([0,1,2,3,4].every(r => cells[r*5+c]))
+            [0,1,2,3,4].forEach(r => col.add(r*5+c));
+    }
+    if ([0,6,12,18,24].every(i => cells[i]))  [0,6,12,18,24].forEach(i => diag.add(i));
+    if ([4,8,12,16,20].every(i => cells[i]))  [4,8,12,16,20].forEach(i => diag.add(i));
+
+    return { row, col, diag };
+}
+
+function renderScoring() {
+    renderLeaderboard();
+    renderGroupCards();
+}
+
 function renderLeaderboard() {
     const ranked = [...groups]
         .map(g => ({ ...g, score: calculateScore(g.cells) }))
         .sort((a, b) => b.score.total - a.score.total);
 
     const medals = ['🥇', '🥈', '🥉'];
-    const list = document.getElementById('leaderboardList');
-
-    list.innerHTML = ranked.map((g, i) => {
-        const rankClass = i < 3 ? `rank-${i + 1}` : 'rank-other';
-        const medal = medals[i] || `${i + 1}.`;
+    document.getElementById('leaderboardList').innerHTML = ranked.map((g, i) => {
         const members = g.members.filter(m => m.trim()).join(', ') || '–';
         return `
-            <div class="leaderboard-row ${rankClass}">
-                <span class="lb-rank">${medal}</span>
+            <div class="leaderboard-row ${i < 3 ? `rank-${i+1}` : 'rank-other'}">
+                <span class="lb-rank">${medals[i] || `${i+1}.`}</span>
                 <div class="lb-name">
                     ${g.name}
                     <div style="font-size:0.75em;color:#888;font-weight:normal;">${members}</div>
@@ -163,40 +172,45 @@ function renderLeaderboard() {
 
 function renderGroupCards() {
     const container = document.getElementById('groupsScoring');
+    // Remember which cards were open
+    const openIds = new Set(
+        [...document.querySelectorAll('.group-card.open')]
+            .map(c => c.dataset.groupId)
+    );
+
     container.innerHTML = '';
 
     const ranked = [...groups]
         .map(g => ({ ...g, score: calculateScore(g.cells) }))
         .sort((a, b) => b.score.total - a.score.total);
 
+    const medals = ['🥇', '🥈', '🥉'];
+
     ranked.forEach((group, rankIndex) => {
         const score = group.score;
-        const card = document.createElement('div');
-        card.className = 'group-card';
-        card.dataset.groupId = group.id;
-
-        // Build bonus highlight sets
-        const highlightRow = new Set();
-        const highlightCol = new Set();
-        const highlightDiag = new Set();
-
-        for (let r = 0; r < 5; r++) {
-            if ([0,1,2,3,4].every(c => group.cells[r*5+c])) {
-                [0,1,2,3,4].forEach(c => highlightRow.add(r*5+c));
-            }
-        }
-        for (let c = 0; c < 5; c++) {
-            if ([0,1,2,3,4].every(r => group.cells[r*5+c])) {
-                [0,1,2,3,4].forEach(r => highlightCol.add(r*5+c));
-            }
-        }
-        if ([0,6,12,18,24].every(i => group.cells[i])) [0,6,12,18,24].forEach(i => highlightDiag.add(i));
-        if ([4,8,12,16,20].every(i => group.cells[i])) [4,8,12,16,20].forEach(i => highlightDiag.add(i));
-
-        const medals = ['🥇', '🥈', '🥉'];
-        const rankLabel = rankIndex < 3 ? medals[rankIndex] : `Platz ${rankIndex + 1}`;
+        const bonus = getBonusSets(group.cells);
         const members = group.members.filter(m => m.trim());
         const memberPreview = members.slice(0, 3).join(', ') + (members.length > 3 ? ` +${members.length - 3}` : '');
+        const rankLabel = rankIndex < 3 ? medals[rankIndex] : `Platz ${rankIndex + 1}`;
+        const wasOpen = openIds.has(String(group.id));
+
+        const card = document.createElement('div');
+        card.className = 'group-card' + (wasOpen ? ' open' : '');
+        card.dataset.groupId = group.id;
+
+        // Build grid cells - just show numbers 1-25
+        const gridCells = Array.from({ length: 25 }, (_, i) => {
+            const checked = group.cells[i];
+            let bonusClass = '';
+            if (checked) {
+                if      (bonus.diag.has(i)) bonusClass = 'diag-bonus';
+                else if (bonus.row.has(i) && bonus.col.has(i)) bonusClass = 'diag-bonus';
+                else if (bonus.row.has(i))  bonusClass = 'row-bonus';
+                else if (bonus.col.has(i))  bonusClass = 'col-bonus';
+            }
+            return `<div class="scoring-cell ${checked ? 'checked' : ''} ${checked ? bonusClass : ''}"
+                onclick="toggleCell('${group.id}', ${i})">${i + 1}</div>`;
+        }).join('');
 
         card.innerHTML = `
             <div class="group-header" onclick="toggleGroup('${group.id}')">
@@ -211,30 +225,24 @@ function renderGroupCards() {
                     <span class="chevron">▼</span>
                 </div>
             </div>
-            <div class="group-body collapsed">
+            <div class="group-body ${wasOpen ? '' : 'collapsed'}">
                 <div class="score-breakdown">
                     <span class="breakdown-item">📌 Felder: <b>${score.cells}</b></span>
                     <span class="breakdown-item">➡️ Reihen: <b>+${score.rows}</b></span>
                     <span class="breakdown-item">⬇️ Spalten: <b>+${score.cols}</b></span>
                     <span class="breakdown-item">↗️ Diagonalen: <b>+${score.diags}</b></span>
                 </div>
-                <div class="scoring-grid">
-                    ${QUESTIONS.map((q, i) => {
-                        let bonusClass = '';
-                        if (highlightDiag.has(i)) bonusClass = 'diag-bonus';
-                        else if (highlightRow.has(i) && highlightCol.has(i)) bonusClass = 'col-bonus';
-                        else if (highlightRow.has(i)) bonusClass = 'row-bonus';
-                        else if (highlightCol.has(i)) bonusClass = 'col-bonus';
-                        return `<div class="scoring-cell ${group.cells[i] ? 'checked' : ''} ${group.cells[i] ? bonusClass : ''}"
-                            onclick="toggleCell('${group.id}', ${i})">${q}</div>`;
-                    }).join('')}
+                <div class="scoring-grid">${gridCells}</div>
+                <div class="bonus-legend">
+                    <span class="legend-item"><span class="legend-dot" style="background:#f0c040;"></span> Reihe</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#4caf50;"></span> Spalte</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#ff6b6b;"></span> Diagonale</span>
                 </div>
                 <div class="members-list">
                     ${members.map(m => `<span class="member-tag">👤 ${m}</span>`).join('')}
                 </div>
             </div>
         `;
-
         container.appendChild(card);
     });
 }
@@ -253,13 +261,6 @@ function toggleCell(groupId, cellIndex) {
     group.cells[cellIndex] = !group.cells[cellIndex];
     saveData();
     renderScoring();
-
-    // Re-open the card that was open
-    const card = document.querySelector(`.group-card[data-group-id="${groupId}"]`);
-    if (card) {
-        card.classList.add('open');
-        card.querySelector('.group-body').classList.remove('collapsed');
-    }
 }
 
 function saveData() {
@@ -278,13 +279,8 @@ function resetAll() {
     }
 }
 
-// ─── EVENT LISTENERS ────────────────────────────────────────
-
 document.getElementById('addGroupBtn').addEventListener('click', addGroup);
-document.getElementById('startBtn').addEventListener('click', () => {
-    saveData();
-    showScoringScreen();
-});
+document.getElementById('startBtn').addEventListener('click', () => { saveData(); showScoringScreen(); });
 document.getElementById('resetBtn').addEventListener('click', resetAll);
 
 init();
