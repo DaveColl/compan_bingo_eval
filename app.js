@@ -1,4 +1,4 @@
-const APP_VERSION = '1.5';
+const APP_VERSION = '1.6';
 
 (function checkVersion() {
     const saved = localStorage.getItem('scoringAppVersion');
@@ -10,8 +10,6 @@ const APP_VERSION = '1.5';
 })();
 
 let groups = [];
-
-// ─── INIT ────────────────────────────────────────────────────
 
 function init() {
     const saved = localStorage.getItem('bingoScoring');
@@ -28,15 +26,13 @@ function init() {
     renderSetup();
 }
 
-// ─── SETUP ───────────────────────────────────────────────────
-
 function addGroup() {
     groups.push({
         id: Date.now() + Math.random(),
         name: '',
         members: ['', '', '', '', ''],
-        cells: Array(25).fill(false),
-        submittedAt: null   // timestamp when group hands in
+        cells: Array(16).fill(false),
+        submittedAt: null
     });
     renderSetup();
 }
@@ -101,21 +97,22 @@ function showScoringScreen() {
     renderScoring();
 }
 
-// ─── SCORING ─────────────────────────────────────────────────
-
 function calculateScore(cells) {
     let cellPoints = 0, rowBonus = 0, colBonus = 0, diagBonus = 0;
 
     cells.forEach(c => { if (c) cellPoints++; });
 
-    for (let r = 0; r < 5; r++) {
-        if ([0,1,2,3,4].every(c => cells[r * 5 + c])) rowBonus++;
+    // Rows
+    for (let r = 0; r < 4; r++) {
+        if ([0,1,2,3].every(c => cells[r * 4 + c])) rowBonus++;
     }
-    for (let c = 0; c < 5; c++) {
-        if ([0,1,2,3,4].every(r => cells[r * 5 + c])) colBonus++;
+    // Columns
+    for (let c = 0; c < 4; c++) {
+        if ([0,1,2,3].every(r => cells[r * 4 + c])) colBonus++;
     }
-    if ([0,6,12,18,24].every(i => cells[i])) diagBonus++;
-    if ([4,8,12,16,20].every(i => cells[i])) diagBonus++;
+    // Diagonals
+    if ([0,5,10,15].every(i => cells[i])) diagBonus++;
+    if ([3,6,9,12].every(i => cells[i]))  diagBonus++;
 
     return {
         cells: cellPoints,
@@ -129,21 +126,20 @@ function calculateScore(cells) {
 function getBonusSets(cells) {
     const row = new Set(), col = new Set(), diag = new Set();
 
-    for (let r = 0; r < 5; r++) {
-        if ([0,1,2,3,4].every(c => cells[r*5+c]))
-            [0,1,2,3,4].forEach(c => row.add(r*5+c));
+    for (let r = 0; r < 4; r++) {
+        if ([0,1,2,3].every(c => cells[r*4+c]))
+            [0,1,2,3].forEach(c => row.add(r*4+c));
     }
-    for (let c = 0; c < 5; c++) {
-        if ([0,1,2,3,4].every(r => cells[r*5+c]))
-            [0,1,2,3,4].forEach(r => col.add(r*5+c));
+    for (let c = 0; c < 4; c++) {
+        if ([0,1,2,3].every(r => cells[r*4+c]))
+            [0,1,2,3].forEach(r => col.add(r*4+c));
     }
-    if ([0,6,12,18,24].every(i => cells[i])) [0,6,12,18,24].forEach(i => diag.add(i));
-    if ([4,8,12,16,20].every(i => cells[i])) [4,8,12,16,20].forEach(i => diag.add(i));
+    if ([0,5,10,15].every(i => cells[i])) [0,5,10,15].forEach(i => diag.add(i));
+    if ([3,6,9,12].every(i => cells[i]))  [3,6,9,12].forEach(i => diag.add(i));
 
     return { row, col, diag };
 }
 
-// Format timestamp nicely
 function formatTime(ts) {
     if (!ts) return null;
     const d = new Date(ts);
@@ -153,7 +149,6 @@ function formatTime(ts) {
     return `${h}:${m}:${s}`;
 }
 
-// Calculate submission order among submitted groups
 function getSubmissionOrder(groupId) {
     const submitted = groups
         .filter(g => g.submittedAt !== null)
@@ -165,15 +160,12 @@ function getSubmissionOrder(groupId) {
 function submitGroup(groupId) {
     const group = groups.find(g => String(g.id) === String(groupId));
     if (!group) return;
-
     if (group.submittedAt) {
-        // Allow undoing submission
         if (!confirm(`Abgabe für "${group.name}" rückgängig machen?`)) return;
         group.submittedAt = null;
     } else {
         group.submittedAt = Date.now();
     }
-
     saveData();
     renderScoring();
 }
@@ -184,15 +176,13 @@ function renderScoring() {
 }
 
 function renderLeaderboard() {
-    // Sort: higher score first, then earlier submission time, then not submitted last
     const ranked = [...groups]
         .map(g => ({ ...g, score: calculateScore(g.cells) }))
         .sort((a, b) => {
             if (b.score.total !== a.score.total) return b.score.total - a.score.total;
-            // Tiebreaker: submitted first wins
             if (a.submittedAt && b.submittedAt) return a.submittedAt - b.submittedAt;
-            if (a.submittedAt) return -1; // a submitted, b didn't → a wins
-            if (b.submittedAt) return 1;  // b submitted, a didn't → b wins
+            if (a.submittedAt) return -1;
+            if (b.submittedAt) return 1;
             return 0;
         });
 
@@ -211,7 +201,7 @@ function renderLeaderboard() {
                     <div style="font-size:0.75em;color:#888;font-weight:normal;">${members}</div>
                 </div>
                 <div class="lb-meta">
-                    <span class="lb-cells">${g.score.cells}/25 Felder</span>
+                    <span class="lb-cells">${g.score.cells}/16 Felder</span>
                     ${submittedHtml}
                 </div>
                 <span class="lb-score">${g.score.total} Pt.</span>
@@ -245,14 +235,14 @@ function renderGroupCards() {
         card.className = `group-card${wasOpen ? ' open' : ''}${isSubmitted ? ' submitted' : ''}`;
         card.dataset.groupId = group.id;
 
-        const gridCells = Array.from({ length: 25 }, (_, i) => {
+        const gridCells = Array.from({ length: 16 }, (_, i) => {
             const checked = group.cells[i];
             let bonusClass = '';
             if (checked) {
-                if      (bonus.diag.has(i))                       bonusClass = 'diag-bonus';
-                else if (bonus.row.has(i) && bonus.col.has(i))    bonusClass = 'diag-bonus';
-                else if (bonus.row.has(i))                        bonusClass = 'row-bonus';
-                else if (bonus.col.has(i))                        bonusClass = 'col-bonus';
+                if      (bonus.diag.has(i))                    bonusClass = 'diag-bonus';
+                else if (bonus.row.has(i) && bonus.col.has(i)) bonusClass = 'diag-bonus';
+                else if (bonus.row.has(i))                     bonusClass = 'row-bonus';
+                else if (bonus.col.has(i))                     bonusClass = 'col-bonus';
             }
             return `<div class="scoring-cell ${checked ? 'checked' : ''} ${checked ? bonusClass : ''}"
                 onclick="toggleCell('${group.id}', ${i})">${i + 1}</div>`;
