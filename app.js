@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 
 (function checkVersion() {
     const saved = localStorage.getItem('scoringAppVersion');
@@ -16,6 +16,8 @@ function init() {
     if (saved) {
         const data = JSON.parse(saved);
         groups = data.groups || [];
+        // Abwärtskompatibilität für bestehende Speicherdaten
+        groups.forEach(g => { if (typeof g.gltCount === 'undefined') g.gltCount = 0; });
         if (groups.length > 0) {
             showScoringScreen();
             return;
@@ -32,6 +34,7 @@ function addGroup() {
         name: '',
         members: ['', '', '', '', ''],
         cells: Array(16).fill(false),
+        gltCount: 0,
         submittedAt: null
     });
     renderSetup();
@@ -97,10 +100,17 @@ function showScoringScreen() {
     renderScoring();
 }
 
-function calculateScore(cells) {
+function calculateScore(group) {
+    const cells = group.cells;
     let cellPoints = 0, rowBonus = 0, colBonus = 0, diagBonus = 0;
 
-    cells.forEach(c => { if (c) cellPoints++; });
+    cells.forEach((c, i) => { 
+        if (i === 9) {
+            cellPoints += (group.gltCount || 0);
+        } else if (c) {
+            cellPoints++; 
+        }
+    });
 
     // Rows
     for (let r = 0; r < 4; r++) {
@@ -170,6 +180,17 @@ function submitGroup(groupId) {
     renderScoring();
 }
 
+function updateGLTCount(groupId, value) {
+    const group = groups.find(g => String(g.id) === String(groupId));
+    if (!group) return;
+    let count = parseInt(value, 10);
+    if (isNaN(count) || count < 0) count = 0;
+    group.gltCount = count;
+    group.cells[9] = count > 0;
+    saveData();
+    renderScoring();
+}
+
 function renderScoring() {
     renderLeaderboard();
     renderGroupCards();
@@ -177,7 +198,7 @@ function renderScoring() {
 
 function renderLeaderboard() {
     const ranked = [...groups]
-        .map(g => ({ ...g, score: calculateScore(g.cells) }))
+        .map(g => ({ ...g, score: calculateScore(g) }))
         .sort((a, b) => {
             if (b.score.total !== a.score.total) return b.score.total - a.score.total;
             if (a.submittedAt && b.submittedAt) return a.submittedAt - b.submittedAt;
@@ -201,7 +222,7 @@ function renderLeaderboard() {
                     <div style="font-size:0.75em;color:#888;font-weight:normal;">${members}</div>
                 </div>
                 <div class="lb-meta">
-                    <span class="lb-cells">${g.score.cells}/16 Felder</span>
+                    <span class="lb-cells">${g.score.cells} Pt. (Felder)</span>
                     ${submittedHtml}
                 </div>
                 <span class="lb-score">${g.score.total} Pt.</span>
@@ -220,7 +241,7 @@ function renderGroupCards() {
 
     container.innerHTML = '';
 
-    const withScores = groups.map(g => ({ ...g, score: calculateScore(g.cells) }));
+    const withScores = groups.map(g => ({ ...g, score: calculateScore(g) }));
 
     withScores.forEach((group, index) => {
         const score = group.score;
@@ -244,6 +265,18 @@ function renderGroupCards() {
                 else if (bonus.row.has(i))                     bonusClass = 'row-bonus';
                 else if (bonus.col.has(i))                     bonusClass = 'col-bonus';
             }
+            
+            if (i === 9) {
+                return `
+                <div class="scoring-cell ${checked ? 'checked' : ''} ${checked ? bonusClass : ''}" style="padding: 0; display: flex; align-items: center; justify-content: center;">
+                    <input type="number" min="0" value="${group.gltCount || 0}"
+                        onchange="updateGLTCount('${group.id}', this.value)"
+                        onclick="event.stopPropagation()"
+                        title="Anzahl GLT-Personen eintragen"
+                        style="width: 80%; text-align: center; background: rgba(255,255,255,0.2); color: inherit; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; font-weight: bold; font-size: 1.1em;" />
+                </div>`;
+            }
+
             return `<div class="scoring-cell ${checked ? 'checked' : ''} ${checked ? bonusClass : ''}"
                 onclick="toggleCell('${group.id}', ${i})">${i + 1}</div>`;
         }).join('');
@@ -274,7 +307,7 @@ function renderGroupCards() {
             </div>
             <div class="group-body ${wasOpen ? '' : 'collapsed'}">
                 <div class="score-breakdown">
-                    <span class="breakdown-item">📌 Felder: <b>${score.cells}</b></span>
+                    <span class="breakdown-item">📌 Felder (inkl. GLT): <b>${score.cells}</b></span>
                     <span class="breakdown-item">➡️ Reihen: <b>+${score.rows}</b></span>
                     <span class="breakdown-item">⬇️ Spalten: <b>+${score.cols}</b></span>
                     <span class="breakdown-item">↗️ Diagonalen: <b>+${score.diags}</b></span>
