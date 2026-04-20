@@ -295,6 +295,40 @@ h2 {
     background: #dce8ff;
     transform: scale(1.08);
 }
+.scoring-cell.scoring-cell-input {
+    padding: 8px;
+    cursor: default;
+}
+.scoring-cell.scoring-cell-input:hover {
+    transform: none;
+}
+.scoring-input-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    font-size: 0.58em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+}
+.scoring-input {
+    width: 100%;
+    max-width: 72px;
+    padding: 6px 8px;
+    text-align: center;
+    background: rgba(255,255,255,0.25);
+    color: inherit;
+    border: 1px solid rgba(37,99,184,0.25);
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 1.4em;
+}
+.scoring-input:focus {
+    outline: none;
+    border-color: rgba(37,99,184,0.7);
+}
 .scoring-cell.checked {
     background: linear-gradient(135deg, #2563b8, #3b82f6);
     border-color: #1a4d9e;
@@ -304,6 +338,11 @@ h2 {
 .scoring-cell.checked.row-bonus  { box-shadow: 0 0 0 3px #f0c040, 0 3px 10px rgba(37,99,184,0.4); }
 .scoring-cell.checked.col-bonus  { box-shadow: 0 0 0 3px #4caf50, 0 3px 10px rgba(37,99,184,0.4); }
 .scoring-cell.checked.diag-bonus { box-shadow: 0 0 0 3px #ff6b6b, 0 3px 10px rgba(37,99,184,0.4); }
+.scoring-cell.checked .scoring-input {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border-color: rgba(255,255,255,0.5);
+}
 
 /* ── Submit Button ── */
 .submit-section {
@@ -386,4 +425,6 @@ h2 {
     .members-inputs { grid-template-columns: 1fr; }
     .points-info span { font-size: 0.75em; }
     .scoring-cell { font-size: 0.95em; }
+    .scoring-input-label { font-size: 0.52em; gap: 4px; }
+    .scoring-input { max-width: 58px; font-size: 1.15em; }
 }

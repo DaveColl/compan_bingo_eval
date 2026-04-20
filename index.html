@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#2563b8">
     <title>Kollegen Bingo – Bewertung</title>
-    <link rel="stylesheet" href="style.css?v=1.6">
+    <link rel="stylesheet" href="style.css?v=1.7">
 </head>
 <body>
 
@@ -16,7 +16,7 @@
     <div id="setupScreen" class="screen active">
         <div class="container">
             <h1>🎯 Bingo Bewertung</h1>
-            <p class="subtitle">Tragt alle Gruppen ein, um die Bewertung zu starten.</p>
+            <p class="subtitle">Tragt alle Gruppen ein, um die Bewertung für das 4x3-Bingo zu starten.</p>
             <div id="groupList"></div>
             <button id="addGroupBtn" class="btn btn-secondary">➕ Gruppe hinzufügen</button>
             <button id="startBtn" class="btn btn-primary" disabled>🏁 Bewertung Starten</button>
@@ -38,15 +38,15 @@
 
             <div class="points-info">
                 <span>📌 1 Pt. pro Feld</span>
-                <span>➕ 1 Bonus pro Reihe</span>
-                <span>➕ 1 Bonus pro Spalte</span>
-                <span>➕ 1 Bonus pro Diagonale</span>
+                <span>🎯 Die 2 Mittelfelder sind frei bepunktbar</span>
+                <span>➕ 4 in einer Reihe = 1 Pt.</span>
+                <span>➕ 3 in einer Spalte/Diagonale = 0,5 Pt.</span>
             </div>
 
             <div id="groupsScoring"></div>
         </div>
     </div>
 
-    <script src="app.js?v=1.5"></script>
+    <script src="app.js?v=1.8"></script>
 </body>
 </html>

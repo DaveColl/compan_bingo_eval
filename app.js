@@ -1,4 +1,23 @@
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
+const GRID_COLUMNS = 4;
+const GRID_ROWS = 3;
+const TOTAL_CELLS = GRID_COLUMNS * GRID_ROWS;
+const CUSTOM_POINT_INDEXES = [5, 6];
+const FOUR_IN_ROW_POINTS = 1;
+const THREE_IN_ROW_POINTS = 0.5;
+
+const ROW_LINES = Array.from({ length: GRID_ROWS }, (_, row) =>
+    Array.from({ length: GRID_COLUMNS }, (_, col) => row * GRID_COLUMNS + col)
+);
+const COLUMN_LINES = Array.from({ length: GRID_COLUMNS }, (_, col) =>
+    Array.from({ length: GRID_ROWS }, (_, row) => row * GRID_COLUMNS + col)
+);
+const DIAGONAL_LINES = [
+    [0, 5, 10],
+    [1, 6, 11],
+    [2, 5, 8],
+    [3, 6, 9]
+];
 
 (function checkVersion() {
     const saved = localStorage.getItem('scoringAppVersion');
@@ -11,13 +30,81 @@ const APP_VERSION = '1.7';
 
 let groups = [];
 
+function createEmptyCustomPoints() {
+    return CUSTOM_POINT_INDEXES.reduce((acc, index) => {
+        acc[index] = 0;
+        return acc;
+    }, {});
+}
+
+function createGroup() {
+    return {
+        id: Date.now() + Math.random(),
+        name: '',
+        members: ['', '', '', '', ''],
+        cells: Array(TOTAL_CELLS).fill(false),
+        customPoints: createEmptyCustomPoints(),
+        submittedAt: null
+    };
+}
+
+function isCustomPointCell(index) {
+    return CUSTOM_POINT_INDEXES.includes(index);
+}
+
+function sanitizePointValue(value) {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function formatPoints(value) {
+    const normalized = Math.round(value * 100) / 100;
+    if (Number.isInteger(normalized)) {
+        return normalized.toString();
+    }
+    return normalized.toLocaleString('de-DE', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 2
+    });
+}
+
+function normalizeGroup(group) {
+    group.members = Array.isArray(group.members) ? group.members.slice(0, 5) : [];
+    while (group.members.length < 5) group.members.push('');
+
+    group.cells = Array.isArray(group.cells)
+        ? group.cells.slice(0, TOTAL_CELLS).map(Boolean)
+        : [];
+    while (group.cells.length < TOTAL_CELLS) group.cells.push(false);
+
+    const legacyCustomValue = typeof group.gltCount === 'number' ? group.gltCount : 0;
+    group.customPoints = group.customPoints && typeof group.customPoints === 'object'
+        ? group.customPoints
+        : createEmptyCustomPoints();
+
+    if (legacyCustomValue > 0 && !group.customPoints[CUSTOM_POINT_INDEXES[0]]) {
+        group.customPoints[CUSTOM_POINT_INDEXES[0]] = legacyCustomValue;
+    }
+
+    CUSTOM_POINT_INDEXES.forEach(index => {
+        const customValue = sanitizePointValue(group.customPoints[index]);
+        group.customPoints[index] = customValue;
+        group.cells[index] = customValue > 0;
+    });
+
+    if (typeof group.submittedAt === 'undefined') group.submittedAt = null;
+}
+
+function countCompletedLines(lines, cells) {
+    return lines.filter(line => line.every(index => cells[index])).length;
+}
+
 function init() {
     const saved = localStorage.getItem('bingoScoring');
     if (saved) {
         const data = JSON.parse(saved);
         groups = data.groups || [];
-        // Abwärtskompatibilität für bestehende Speicherdaten
-        groups.forEach(g => { if (typeof g.gltCount === 'undefined') g.gltCount = 0; });
+        groups.forEach(normalizeGroup);
         if (groups.length > 0) {
             showScoringScreen();
             return;
@@ -29,14 +116,7 @@ function init() {
 }
 
 function addGroup() {
-    groups.push({
-        id: Date.now() + Math.random(),
-        name: '',
-        members: ['', '', '', '', ''],
-        cells: Array(16).fill(false),
-        gltCount: 0,
-        submittedAt: null
-    });
+    groups.push(createGroup());
     renderSetup();
 }
 
@@ -102,50 +182,47 @@ function showScoringScreen() {
 
 function calculateScore(group) {
     const cells = group.cells;
-    let cellPoints = 0, rowBonus = 0, colBonus = 0, diagBonus = 0;
+    let cellPoints = 0;
 
-    cells.forEach((c, i) => { 
-        if (i === 9) {
-            cellPoints += (group.gltCount || 0);
-        } else if (c) {
-            cellPoints++; 
+    cells.forEach((checked, index) => {
+        if (isCustomPointCell(index)) {
+            cellPoints += sanitizePointValue(group.customPoints?.[index]);
+        } else if (checked) {
+            cellPoints++;
         }
     });
 
-    // Rows
-    for (let r = 0; r < 4; r++) {
-        if ([0,1,2,3].every(c => cells[r * 4 + c])) rowBonus++;
-    }
-    // Columns
-    for (let c = 0; c < 4; c++) {
-        if ([0,1,2,3].every(r => cells[r * 4 + c])) colBonus++;
-    }
-    // Diagonals
-    if ([0,5,10,15].every(i => cells[i])) diagBonus++;
-    if ([3,6,9,12].every(i => cells[i]))  diagBonus++;
+    const rowBonus = countCompletedLines(ROW_LINES, cells);
+    const colBonus = countCompletedLines(COLUMN_LINES, cells);
+    const diagBonus = countCompletedLines(DIAGONAL_LINES, cells);
+    const rowPoints = rowBonus * FOUR_IN_ROW_POINTS;
+    const colPoints = colBonus * THREE_IN_ROW_POINTS;
+    const diagPoints = diagBonus * THREE_IN_ROW_POINTS;
 
     return {
         cells: cellPoints,
         rows: rowBonus,
         cols: colBonus,
         diags: diagBonus,
-        total: cellPoints + rowBonus + colBonus + diagBonus
+        rowPoints,
+        colPoints,
+        diagPoints,
+        total: cellPoints + rowPoints + colPoints + diagPoints
     };
 }
 
 function getBonusSets(cells) {
     const row = new Set(), col = new Set(), diag = new Set();
 
-    for (let r = 0; r < 4; r++) {
-        if ([0,1,2,3].every(c => cells[r*4+c]))
-            [0,1,2,3].forEach(c => row.add(r*4+c));
-    }
-    for (let c = 0; c < 4; c++) {
-        if ([0,1,2,3].every(r => cells[r*4+c]))
-            [0,1,2,3].forEach(r => col.add(r*4+c));
-    }
-    if ([0,5,10,15].every(i => cells[i])) [0,5,10,15].forEach(i => diag.add(i));
-    if ([3,6,9,12].every(i => cells[i]))  [3,6,9,12].forEach(i => diag.add(i));
+    ROW_LINES.forEach(line => {
+        if (line.every(index => cells[index])) line.forEach(index => row.add(index));
+    });
+    COLUMN_LINES.forEach(line => {
+        if (line.every(index => cells[index])) line.forEach(index => col.add(index));
+    });
+    DIAGONAL_LINES.forEach(line => {
+        if (line.every(index => cells[index])) line.forEach(index => diag.add(index));
+    });
 
     return { row, col, diag };
 }
@@ -180,13 +257,12 @@ function submitGroup(groupId) {
     renderScoring();
 }
 
-function updateGLTCount(groupId, value) {
+function updateCustomCellPoints(groupId, cellIndex, value) {
     const group = groups.find(g => String(g.id) === String(groupId));
     if (!group) return;
-    let count = parseInt(value, 10);
-    if (isNaN(count) || count < 0) count = 0;
-    group.gltCount = count;
-    group.cells[9] = count > 0;
+    const points = sanitizePointValue(value);
+    group.customPoints[cellIndex] = points;
+    group.cells[cellIndex] = points > 0;
     saveData();
     renderScoring();
 }
@@ -222,10 +298,10 @@ function renderLeaderboard() {
                     <div style="font-size:0.75em;color:#888;font-weight:normal;">${members}</div>
                 </div>
                 <div class="lb-meta">
-                    <span class="lb-cells">${g.score.cells} Pt. (Felder)</span>
+                    <span class="lb-cells">${formatPoints(g.score.cells)} Pt. (Felder & Sonderpunkte)</span>
                     ${submittedHtml}
                 </div>
-                <span class="lb-score">${g.score.total} Pt.</span>
+                <span class="lb-score">${formatPoints(g.score.total)} Pt.</span>
             </div>
         `;
     }).join('');
@@ -256,7 +332,7 @@ function renderGroupCards() {
         card.className = `group-card${wasOpen ? ' open' : ''}${isSubmitted ? ' submitted' : ''}`;
         card.dataset.groupId = group.id;
 
-        const gridCells = Array.from({ length: 16 }, (_, i) => {
+        const gridCells = Array.from({ length: TOTAL_CELLS }, (_, i) => {
             const checked = group.cells[i];
             let bonusClass = '';
             if (checked) {
@@ -266,14 +342,16 @@ function renderGroupCards() {
                 else if (bonus.col.has(i))                     bonusClass = 'col-bonus';
             }
             
-            if (i === 9) {
+            if (isCustomPointCell(i)) {
                 return `
-                <div class="scoring-cell ${checked ? 'checked' : ''} ${checked ? bonusClass : ''}" style="padding: 0; display: flex; align-items: center; justify-content: center;">
-                    <input type="number" min="0" value="${group.gltCount || 0}"
-                        onchange="updateGLTCount('${group.id}', this.value)"
+                <div class="scoring-cell scoring-cell-input ${checked ? 'checked' : ''} ${checked ? bonusClass : ''}">
+                    <label class="scoring-input-label" onclick="event.stopPropagation()">
+                        Sonderpunkte
+                        <input class="scoring-input" type="number" min="0" step="0.5" value="${group.customPoints?.[i] || 0}"
+                        onchange="updateCustomCellPoints('${group.id}', ${i}, this.value)"
                         onclick="event.stopPropagation()"
-                        title="Anzahl GLT-Personen eintragen"
-                        style="width: 80%; text-align: center; background: rgba(255,255,255,0.2); color: inherit; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; font-weight: bold; font-size: 1.1em;" />
+                        title="Sonderpunkte für dieses Mittelfeld eintragen" />
+                    </label>
                 </div>`;
             }
 
@@ -300,23 +378,23 @@ function renderGroupCards() {
                     ${isSubmitted ? `<span class="group-submitted-badge">✅ Abgabe ${order}. um ${formatTime(group.submittedAt)}</span>` : ''}
                 </div>
                 <div class="group-score-display">
-                    <span class="score-number">${score.total}</span>
+                    <span class="score-number">${formatPoints(score.total)}</span>
                     <span class="score-label">Punkte</span>
                     <span class="chevron">▼</span>
                 </div>
             </div>
             <div class="group-body ${wasOpen ? '' : 'collapsed'}">
                 <div class="score-breakdown">
-                    <span class="breakdown-item">📌 Felder (inkl. GLT): <b>${score.cells}</b></span>
-                    <span class="breakdown-item">➡️ Reihen: <b>+${score.rows}</b></span>
-                    <span class="breakdown-item">⬇️ Spalten: <b>+${score.cols}</b></span>
-                    <span class="breakdown-item">↗️ Diagonalen: <b>+${score.diags}</b></span>
+                    <span class="breakdown-item">📌 Felder & Sonderpunkte: <b>${formatPoints(score.cells)}</b></span>
+                    <span class="breakdown-item">➡️ 4er-Reihen: <b>${score.rows} × 1 = +${formatPoints(score.rowPoints)}</b></span>
+                    <span class="breakdown-item">⬇️ 3er-Spalten: <b>${score.cols} × 0,5 = +${formatPoints(score.colPoints)}</b></span>
+                    <span class="breakdown-item">↗️ 3er-Diagonalen: <b>${score.diags} × 0,5 = +${formatPoints(score.diagPoints)}</b></span>
                 </div>
                 <div class="scoring-grid">${gridCells}</div>
                 <div class="bonus-legend">
-                    <span class="legend-item"><span class="legend-dot" style="background:#f0c040;"></span> Reihe komplett</span>
-                    <span class="legend-item"><span class="legend-dot" style="background:#4caf50;"></span> Spalte komplett</span>
-                    <span class="legend-item"><span class="legend-dot" style="background:#ff6b6b;"></span> Diagonale komplett</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#f0c040;"></span> 4er-Reihe komplett = +1</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#4caf50;"></span> 3er-Spalte komplett = +0,5</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#ff6b6b;"></span> 3er-Diagonale komplett = +0,5</span>
                 </div>
                 ${submitHtml}
                 <div class="members-list">
@@ -340,6 +418,7 @@ function toggleGroup(id) {
 function toggleCell(groupId, cellIndex) {
     const group = groups.find(g => String(g.id) === String(groupId));
     if (!group) return;
+    if (isCustomPointCell(cellIndex)) return;
     group.cells[cellIndex] = !group.cells[cellIndex];
     saveData();
     renderScoring();
